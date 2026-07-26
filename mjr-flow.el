@@ -150,7 +150,7 @@ Three modes of interactive operation:
                                                                            (inferior-ess-r-mode (or (short-name "*R*"     m) n))
                                                                            (t                             n)))
                                                                        da-buf-names da-buf-files da-buf-modes da-buf-dirs))
-                                               (sel-str     (if (require 'ido nil :noerror)
+                                               (sel-str     (if (and (boundp 'ido-everywhere) ido-everywhere)
                                                                 (ido-completing-read "Buffer: " da-buf-strs nil 't)         
                                                                 (completing-read "Buffer: "     da-buf-strs nil 't)))
                                                (sel-idx     (cl-position sel-str da-buf-strs :test #'equal)))
@@ -480,7 +480,7 @@ With a prefix argument, query for the register to use. Without a prefix argument
 (defun mjr-scratch (&optional mode-to-use content)
   "Create a new scratch buffer with current region's contents and switch to it.  Understands rectangular selections.
 The mode for the new buffer is interactively queried.  With prefix argument you can specify an arbitrary mode, without you get a safe list."
-  (interactive (list (if (and (null current-prefix-arg) (require 'ido nil :noerror))
+  (interactive (list (if (and (null current-prefix-arg) (and (boundp 'ido-everywhere) ido-everywhere))
                          (ido-completing-read "New buffer mode: " (delete-dups (list "lisp-interaction-mode" "text-mode" "org-mode" "mail-mode" (symbol-name major-mode))))
                          (read-string         "New buffer mode: " "lisp-interaction-mode"))))
   (let* ((new-buf-content  (if (region-active-p)
