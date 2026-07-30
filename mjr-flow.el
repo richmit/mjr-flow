@@ -1,4 +1,4 @@
-;; mjr-flow -*-coding: utf-8 lexical-binding:t; mode:emacs-lisp; fill-column:158 -*-
+;;; mjr-flow.el --- Work flow tools -*- lexical-binding:t; coding: utf-8; mode:emacs-lisp; fill-column:158 -*-
 
 ;; Copyright (c) 2026-2026 Mitch Richling <https://www.mitchr.me>.  All rights reserved.
 ;;
@@ -25,11 +25,26 @@
 
 ;; This file is not part of Emacs
 
-;;; Install:
-;; See the README: https://github.com/richmit/mjr-flow/
-
 ;;; Commentary:
 ;; See the README: https://github.com/richmit/mjr-flow/
+;;
+;; Over the years I have developed a workflow, or perhaps just a set of habits.  This package provides support for some of these habits.
+;;
+;; So first, some things about be.  I use Emacs to write/build/debug a lot of code in a lot of different programming languages for a lot of different
+;; platforms.  I use Emacs to interface with a number of scientific, mathematical, & engineering software packages -- both for interactive problem solving and
+;; automation.  I also use Emacs to interact with external physical hardware like debug probes and electronic test equipment.  I normally use a 43" screen
+;; with Emacs taking up 3/4 of it right in the center.
+;;
+;; I make heavy use of eshell & dired and have haevily customized them both.  `mjr-dired-for-buffer' (C-c d) & `mjr-eshell' (C-c s) starts, or switches to, a
+;; dired/eshell for the buffer I'm using.  They have some fancy rules for the directory in which to start those buffers.  For exaple if the file I'm working on
+;; is part of a software development project, the eshell & dired will be started, or an existing one rused, in the project root directory with the dired
+;; buffer getting the CWD inserted if it's missing.  dired & eshell are not the only buffers that might be related to the buffer I'm working with.  For
+;; example a C++ source file might have an associated compile buffer, or a Julia code buffer might have an associated interactive buffer.
+;; `mjr-arrange-windows' (C-c w) is designed to collect together all of these related buffers and display them in a sensible way in the frame.  It can have
+;; very sophsticated rules set up to identify related buffers and display them.  `mjr-window-configuration-to-register-and-zoom' (C-c z) allows me to zoom
+;; into, and out of, a buffer.  `mjr-follow-mode' (C-c f) takes over a frame createing follow-style windows.  The functions `mjr-view-file-or-url-at-point'
+;; (C-c v) & `mjr-open-cwd' (C-c e) provide some welcome interaction with the host operating system.  Some of these functions provide significantly more
+;; complex behavior that one might expect -- `mjr-eshell' (C-c s) & `mjr-arrange-windows' (C-c w) in particular.
 
 ;;; Code:
 
@@ -62,25 +77,25 @@ eshell sessions for this buffer.  In all other cases the return from mjr-buffer-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
-(defun mjr--find-buffer (only-one &rest rest)
+(defun mjr-find-buffer (only-one &rest rest)
   "Search for one (when ONLY-ONE is non-NIL) or more buffer.
 Search the buffer list by a series of ANDed together criteria -- i.e. matching buffers must match every provided criteria.
 Each criteria consists of a criteria type symbol and a filter value -- provided as two arguments to this function.  The filter
 value may be a list in which case it's elements are logically ORed together -- i.e. a buffer matches the criteria if it matches
 any of the filter values on the list.  A filter value of nil matches anything.  Criteria types:
-  - :mode ............... Find buffers by `major-mode'
-  - :dir & :dir-re ...... Find buffers by `mjr-buffer-directory'
-  - :name & :name-re .... Find buffers by `buffer-name'
-  - :file & :file-re .... Find buffers by `buffer-file-name'
+  - :mode ............... Find buffers by function `major-mode'
+  - :dir & :dir-re ...... Find buffers by function `mjr-buffer-directory'
+  - :name & :name-re .... Find buffers by function `buffer-name'
+  - :file & :file-re .... Find buffers by function `buffer-file-name'
 Examples:
   - Find all EShell buffers
-      (mjr--find-buffer nil :mode 'eshell-mode)
+      (mjr-find-buffer nil :mode 'eshell-mode)
   - Find ONE EShell buffer
-      (mjr--find-buffer t :mode 'eshell-mode)
+      (mjr-find-buffer t :mode 'eshell-mode)
   - Find an EShell buffer in a particular directory
-      (mjr--find-buffer t :mode 'eshell-mode :dir \"/foo/bar/bo/\")
+      (mjr-find-buffer t :mode 'eshell-mode :dir \"/foo/bar/bo/\")
   - Find a all EShell and elisp scratch buffers:
-      (mjr--find-buffer nil :mode '(eshell-mode lisp-interaction-mode))"
+      (mjr-find-buffer nil :mode '(eshell-mode lisp-interaction-mode))"
   (require 'seq)
   (let ((res-list (buffer-list)))
     (cl-loop for (k v) on rest by #'cddr
@@ -95,7 +110,7 @@ Examples:
                                  (:name-re   (cl-remove-if-not (lambda (b) (seq-some (lambda (ve) (string-match-p ve (buffer-name b)))                    vl)) res-list))
                                  (:file      (cl-remove-if-not (lambda (b) (seq-some (lambda (ve) (string-equal   ve (or (buffer-file-name b) "")))       vl)) res-list))
                                  (:file-re   (cl-remove-if-not (lambda (b) (seq-some (lambda (ve) (string-match-p ve (or (buffer-file-name b) "")))       vl)) res-list))
-                                 (otherwise  (error "mjr--find-buffer: Unsupported search keyword: %s" k)))))
+                                 (otherwise  (error "mjr-find-buffer: Unsupported search keyword: %s" k)))))
     (if only-one
         (car res-list)
         res-list)))
@@ -151,7 +166,7 @@ Three modes of interactive operation:
                                                                            (t                             n)))
                                                                        da-buf-names da-buf-files da-buf-modes da-buf-dirs))
                                                (sel-str     (if (and (boundp 'ido-everywhere) ido-everywhere)
-                                                                (ido-completing-read "Buffer: " da-buf-strs nil 't)         
+                                                                (ido-completing-read "Buffer: " da-buf-strs nil 't)
                                                                 (completing-read "Buffer: "     da-buf-strs nil 't)))
                                                (sel-idx     (cl-position sel-str da-buf-strs :test #'equal)))
                                      (nth sel-idx da-windows)))))))))
@@ -192,28 +207,29 @@ alt-op alters the behavior
 ;;;###autoload
 (defun mjr-eshell (&optional pfx)
   "Start or switch to an existing eshell buffer.
-     - Without a prefix argument
-       - If a single eshell buffer exits sharing the current buffer's working directory, then switch to that eshell
-       - If a multiple eshell buffers exist sharing the current buffer's working directory, show an `ibuffer' with the options
-       - If no eshell buffers exit sharing the current buffer's working directory:
-         - Ask the user for a CWD for an eshell (default is the current buffer's CWD)
-           - If a single eshell buffer exits for the entered directory, then switch to that eshell
-           - If a multiple eshell buffers exist for the entered directory, show an `ibuffer' with the options
-           - If no eshell buffers exit for the entered directory
-             - If the entered directory exists in the file-system, then create a new eshell and switch to it
-             - Otherwise ERROR
-     - C-u prefix argument
-       - If only one eshell buffer exists, then switch to it
-       - If multiple eshell buffers exist, then show `ibuffer' with all eshell buffers
-       - Otherwise ERROR
-     - C-u - or M-- or C-- or negative prefix argument
-       - Ask the user for a CWD for an eshell (default is the current buffer's CWD)
-         - If the entered directory exists in the file-system, then create a new eshell and switch to it
-         - Otherwise ERROR
-     - Positive numeric prefix not entered via (C-u without numbers) -- i.e. C-u NUMBERS or M-NUMBERS
-       - If an eshell exists with the numeric prefix as index, then switch to it.
-       - If no eshell exists with the numeric prefix as index, then create it with current buffer's CWD without asking
-     - When switching to an existing buffer, mjr-show-buffer is used.  So we `select-window' if the buffer is visible, and `switch-to-buffer' otherwise."
+PFX argument:
+  - Without a prefix argument
+    - If a single eshell buffer exits sharing the current buffer's working directory, then switch to that eshell
+    - If a multiple eshell buffers exist sharing the current buffer's working directory, show an `ibuffer' with the options
+    - If no eshell buffers exit sharing the current buffer's working directory:
+      - Ask the user for a CWD for an eshell (default is the current buffer's CWD)
+        - If a single eshell buffer exits for the entered directory, then switch to that eshell
+        - If a multiple eshell buffers exist for the entered directory, show an `ibuffer' with the options
+        - If no eshell buffers exit for the entered directory
+          - If the entered directory exists in the file-system, then create a new eshell and switch to it
+          - Otherwise ERROR
+  - C-u prefix argument
+    - If only one eshell buffer exists, then switch to it
+    - If multiple eshell buffers exist, then show `ibuffer' with all eshell buffers
+    - Otherwise ERROR
+  - C-u - or M-- or C-- or negative prefix argument
+    - Ask the user for a CWD for an eshell (default is the current buffer's CWD)
+      - If the entered directory exists in the file-system, then create a new eshell and switch to it
+      - Otherwise ERROR
+  - Positive numeric prefix not entered via (C-u without numbers) -- i.e. C-u NUMBERS or M-NUMBERS
+    - If an eshell exists with the numeric prefix as index, then switch to it.
+    - If no eshell exists with the numeric prefix as index, then create it with current buffer's CWD without asking
+  - When switching to an existing buffer, mjr-show-buffer is used.  So we `select-window' if the buffer is visible, and `switch-to-buffer' otherwise."
   (interactive "P")
   (require 'eshell)
   (let* ((buffer-cwd    (mjr-buffer-directory))
@@ -394,12 +410,12 @@ With a prefix argument, query for the register to use. Without a prefix argument
                         (inferior-octave-mode     25 25  nil)
                         (lisp-interaction-mode    25 25  nil)
                         (slime-repl-mode          25 25  nil)
-                        ("elisp-interactyness"    25 40  (or (and main-dir   (or (mjr--find-buffer 't :mode 'inferior-emacs-lisp-mode :dir main-dir)
-                                                                                 (mjr--find-buffer 't :mode 'lisp-interaction-mode    :dir main-dir)))
-                                                             (and git-dir    (or (mjr--find-buffer 't :mode 'inferior-emacs-lisp-mode :dir git-dir)
-                                                                                 (mjr--find-buffer 't :mode 'lisp-interaction-mode    :dir git-dir)))
-                                                             (mjr--find-buffer 't :mode 'inferior-emacs-lisp-mode)
-                                                             (mjr--find-buffer 't :mode 'lisp-interaction-mode)))
+                        ("elisp-interactyness"    25 40  (or (and main-dir   (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir main-dir)
+                                                                                 (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir main-dir)))
+                                                             (and git-dir    (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir git-dir)
+                                                                                 (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir git-dir)))
+                                                             (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode)
+                                                             (mjr-find-buffer 't :mode 'lisp-interaction-mode)))
                         (vc-dir-mode              15 15  (when (and main-dir git-dir (string-equal main-dir git-dir))
                                                            (let ((display-buffer-alist '((".*" display-buffer-same-window))))
                                                              (vc-dir git-dir)
@@ -413,7 +429,7 @@ With a prefix argument, query for the register to use. Without a prefix argument
                                                    for b = (if n
                                                                (save-excursion
                                                                  (eval n nil))
-                                                               (mjr--find-buffer 't :mode m :dir main-dir))
+                                                               (mjr-find-buffer 't :mode m :dir main-dir))
                                                    when b
                                                    collect (append (list b) o)))
               (match-config-list (da-list) (cadr (cl-find-if (lambda (x) (if (stringp (car x))
@@ -508,7 +524,7 @@ The mode for the new buffer is interactively queried.  With prefix argument you 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
 (defun mjr-view-file-or-url-at-point ()
-  "If point is on a file name or URL, then load with an external viewer/editor.  (open-as with prefix argument on Windows)"
+  "If point is on a file name or URL, then load with an external viewer/editor.  (open-as with prefix argument on Windows)."
   (interactive)
   (when (and (not (eq system-type 'windows-nt)) current-prefix-arg)
     (error "mjr-view-file-or-url-at-point: Prefix argument only supported on native Windows Emacs"))
@@ -570,7 +586,7 @@ The value of cols-or-col-width-or-fill-width-or-percentile is used to determine 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
 (defun mjr-open-cwd ()
-  "Open buffer's CWD in a file browser (explorer on windows, dolphin or nautilus on Linux)"
+  "Open buffer's CWD in a file browser (explorer on windows, dolphin or nautilus on Linux)."
   (interactive)
   (let ((target-dir (mjr-buffer-directory)))
     (cl-case system-type
@@ -582,4 +598,4 @@ The value of cols-or-col-width-or-fill-width-or-percentile is used to determine 
 
 (provide 'mjr-flow)
 
-;;; filename ends here
+;;; mjr-flow.el ends here
