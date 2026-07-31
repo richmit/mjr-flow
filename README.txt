@@ -1,12 +1,6 @@
 mjr-flow
 ========
 
-This Emacs package contains functions I have developed over time to
-support my "work flow".  Yes.  This is a nebulous description.
-
-The easiest way to install mjr-flow is to pull it directly
-from github:
-
-     (package-vc-install (list 'mjr-flow
-                          :url "https://github.com/richmit/mjr-flow"
-                          :rev 'newest))
+<!-- SHELLO: ~/core/codeBits/bin/emacs_package_com_to_md.rb mjr-flow.el -->
+/usr/bin/bash: -c: line 1: syntax error near unexpected token `newline'
+/usr/bin/bash: -c: line 1: ` ~/core/codeBits/bin/emacs_package_com_to_md.rb mjr-flow.el -->'

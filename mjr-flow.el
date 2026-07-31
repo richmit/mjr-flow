@@ -19,7 +19,7 @@
 ;; TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Author:      Mitch Richling
-;; Version:     0.2
+;; Version:     0.5
 ;; Keywords:    mjr-flow
 ;; URL:         https://github.com/richmit/mjr-flow
 
@@ -35,17 +35,29 @@
 ;; automation.  I also use Emacs to interact with external physical hardware like debug probes and electronic test equipment.  I normally use a 43" screen
 ;; with Emacs taking up 3/4 of it right in the center.
 ;;
-;; I make heavy use of eshell & dired and have haevily customized them both.  `mjr-dired-for-buffer' (C-c d) & `mjr-eshell' (C-c s) starts, or switches to, a
-;; dired/eshell for the buffer I'm using.  They have some fancy rules for the directory in which to start those buffers.  For exaple if the file I'm working on
-;; is part of a software development project, the eshell & dired will be started, or an existing one rused, in the project root directory with the dired
-;; buffer getting the CWD inserted if it's missing.  dired & eshell are not the only buffers that might be related to the buffer I'm working with.  For
-;; example a C++ source file might have an associated compile buffer, or a Julia code buffer might have an associated interactive buffer.
-;; `mjr-arrange-windows' (C-c w) is designed to collect together all of these related buffers and display them in a sensible way in the frame.  It can have
-;; very sophsticated rules set up to identify related buffers and display them.  `mjr-window-zoom' (C-c z) allows me to zoom
-;; into, and out of, a buffer.  `mjr-follow-mode' (C-c f) takes over a frame createing follow-style windows.  The functions `mjr-view-file-or-url-at-point'
-;; (C-c v) & `mjr-open-cwd' (C-c e) provide some welcome interaction with the host operating system.  Some of these functions provide significantly more
-;; complex behavior that one might expect -- `mjr-eshell' (C-c s) & `mjr-arrange-windows' (C-c w) in particular.
-
+;; I make heavy use of eshell & dired and have heavily customized them both.  `mjr-dired-for-buffer' & `mjr-eshell' starts, or switches to, a dired/eshell for
+;; the buffer I'm using.  They have some fancy rules for the directory in which to start those buffers.  For example if the file I'm working on is part of a
+;; software development project, the eshell & dired will be started, or an existing one reused, in the project root directory with the dired buffer getting the
+;; CWD inserted if it's missing.  dired & eshell are not the only buffers that might be related to the buffer I'm working with.  For example a C++ source file
+;; might have an associated compile buffer, or a Julia code buffer might have an associated interactive buffer.  `mjr-arrange-windows' is designed to collect
+;; together all of these related buffers and display them in a sensible way in the frame.  It can have very sophisticated rules set up to identify related
+;; buffers and display them.  `mjr-window-zoom' allows me to zoom into, and out of, a buffer.  `mjr-follow-mode' takes over a frame creating follow-style
+;; windows.  The functions `mjr-view-file-or-url-at-point' & `mjr-open-cwd' provide some welcome interaction with the host operating system -- these become
+;; more important because of my use of dired-mode buffers.  Some of these functions provide significantly more complex behavior that one might expect --
+;; `mjr-eshell' & `mjr-arrange-windows' in particular.
+;;
+;; Because these tools form part of my day-to-day workflow, I bind most of them to keys in my init.el file -- they are not bound in this package. My
+;; suggestions are:
+;;      
+;;   - C-c d `mjr-dired-for-buffer'
+;;   - C-c s `mjr-eshell' 
+;;   - C-c w `mjr-arrange-windows' 
+;;   - C-c z `mjr-window-zoom'
+;;   - C-c f `mjr-follow-mode'
+;;   - C-c v `mjr-view-file-or-url-at-point'
+;;   - C-c e `mjr-open-cwd'
+;;   - C-c s `mjr-select-window'
+;;
 ;;; Code:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -67,33 +79,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
-(defcustom mjr-arrange-windows-kin '((:file-re   "^next-tag\\.org"      :group 4 :members (vc-dir-mode))
-                                     (:mode-name org-mode               :group 4 :members (inferior-ess-r-mode
-                                                                                           inf-ruby-mode
-                                                                                           slime-repl-mode
-                                                                                           lisp-interaction-mode
-                                                                                           inferior-emacs-lisp-mode
-                                                                                           inferior-octave-mode
-                                                                                           inferior-maxima-mode))
-                                     (:mode-name makefile-mode          :group 4 :members (vc-dir-mode))
-                                     (:mode-name makefile-gmake-mode    :group 4 :members (vc-dir-mode))
-                                     (:file-re   "^CMakeLists\\.txt"    :group 4 :members (vc-dir-mode))
-                                     (:file-re   "^CMakePresets\\.json" :group 4 :members (vc-dir-mode))
-                                     (:mode-name ess-r-mode             :group 4 :members (ess-rdired-mode))
-                                     (:mode-name ruby-mode              :group 1 :members (inf-ruby-mode))   
-                                     (:mode-name c++-mode               :group 1 :members (compilation-mode))
-                                     (:mode-name fortran-mode           :group 1 :members (compilation-mode))
-                                     (:mode-name f90-mode               :group 1 :members (compilation-mode))
-                                     (:mode-name c-mode                 :group 1 :members (compilation-mode))
-                                     (:file-re   "^CMakeLists\\.txt"    :group 1 :members (compilation-mode))
-                                     (:mode-name makefile-mode          :group 1 :members (compilation-mode))
-                                     (:mode-name makefile-gmake-mode    :group 1 :members (compilation-mode))
-                                     (:mode-name cmake-mode             :group 1 :members (compilation-mode))
-                                     (:mode-name lisp-mode              :group 1 :members (slime-repl-mode))
-                                     (:mode-name octave-mode            :group 1 :members (inferior-octave-mode))
-                                     (:mode-name emacs-lisp-mode        :group 1 :members (:elisp-interactyness))
-                                     (:mode-name ess-r-mode             :group 1 :members (inferior-ess-r-mode))
-                                     (:mode-name inferior-ess-r-mode    :group 1 :members (ess-rdired-mode)))
+(defcustom mjr-arrange-windows-kin '((:main-name-re "^next-tag\\.org"      :group 4 :members (vc-dir-mode))
+                                     (:main-mode-eq org-mode               :group 4 :members (inferior-ess-r-mode
+                                                                                              inf-ruby-mode
+                                                                                              slime-repl-mode
+                                                                                              lisp-interaction-mode
+                                                                                              inferior-emacs-lisp-mode
+                                                                                              inferior-octave-mode
+                                                                                              inferior-maxima-mode))
+                                     (:main-mode-eq makefile-mode          :group 4 :members (vc-dir-mode))
+                                     (:main-mode-eq makefile-gmake-mode    :group 4 :members (vc-dir-mode))
+                                     (:main-name-re "^CMakeLists\\.txt"    :group 4 :members (vc-dir-mode))
+                                     (:main-name-re "^CMakePresets\\.json" :group 4 :members (vc-dir-mode))
+                                     (:main-mode-eq ess-r-mode             :group 4 :members (ess-rdired-mode))
+                                     (:main-mode-eq ruby-mode              :group 1 :members (inf-ruby-mode))   
+                                     (:main-mode-eq c++-mode               :group 1 :members (compilation-mode))
+                                     (:main-mode-eq fortran-mode           :group 1 :members (compilation-mode))
+                                     (:main-mode-eq f90-mode               :group 1 :members (compilation-mode))
+                                     (:main-mode-eq c-mode                 :group 1 :members (compilation-mode))
+                                     (:main-name-re "^CMakeLists\\.txt"    :group 1 :members (compilation-mode))
+                                     (:main-mode-eq makefile-mode          :group 1 :members (compilation-mode))
+                                     (:main-mode-eq makefile-gmake-mode    :group 1 :members (compilation-mode))
+                                     (:main-mode-eq cmake-mode             :group 1 :members (compilation-mode))
+                                     (:main-mode-eq lisp-mode              :group 1 :members (slime-repl-mode))
+                                     (:main-mode-eq octave-mode            :group 1 :members (inferior-octave-mode))
+                                     (:main-mode-eq emacs-lisp-mode        :group 1 :members (:elisp-interactyness))
+                                     (:main-mode-eq ess-r-mode             :group 1 :members (inferior-ess-r-mode))
+                                     (:main-mode-eq inferior-ess-r-mode    :group 1 :members (ess-rdired-mode)))
   "Used by mjr-arrange-windows to define related (kin) buffers."
   :type 'list
   :group 'mjr-flow)
@@ -425,8 +437,8 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
         - If a root is found, then temporarily set `mjr-eshell-prefered-directory' for main buffer and call `mjr-eshell'.  Note this will *not* result in a
           the main buffer acquiring a local value for `mjr-eshell-prefered-directory'.
     - Between the dired & eshell we have /other/ windows that may appear depending on main buffer mode.
-      - The variables `GROUP-1-KIN' & `GROUP-4-KIN' define the other kinds of windows that may be created.
-      - The variable `OTHER-OPT' describe the extra buffers
+      - The variables `mjr-arrange-windows-kin' define the other kinds of windows that may be created.
+      - The variable `mjr-arrange-windows-kin' provide options related to the extra buffers
         - Window height on the left (layout 4)
         - Window right (layout 1&4)
         - How to create/select the buffer.
@@ -467,7 +479,7 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
                             :proj-dir  proj-dir)))
     (when (< max-height     (* 2.0 esh-targ-hi))  (error "mjr-arrange-windows: Window too short for standard layout"))
     (when (< (window-width) (* 2.5 right-width))  (error "mjr-arrange-windows: Window too narrow for standard layout"))
-    (cl-flet ((make-buffer-data-list (ml) (cl-loop for m in ml
+    (cl-flet ((make-buffer-data-list (ml) (cl-loop for m in (plist-get ml :members)
                                                    for o = (cl-find-if (lambda (x) (equal m (plist-get x :id))) mjr-arrange-windows-kin-options)
                                                    for n = (plist-get o :get-buf)
                                                    for b = (if n
@@ -476,12 +488,12 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
                                                                (mjr-find-buffer 't :mode m :dir main-dir))
                                                    when b
                                                    collect (append (list :buf b) o)))
-              (match-config-list (grp-num) (cadr (cl-find-if (lambda (x) (when (member (plist-get mjr-arrange-windows-kin :group) (if (listp grp-num) grp-num (list grp-num)))
-                                                                           (or (let ((id-main-name (plist-get mjr-arrange-windows-kin :main-name)))
-                                                                                 (and id-main-name (string-match-p id-main-name main-name)))
-                                                                               (let ((id-main-mode (plist-get mjr-arrange-windows-kin :main-mode)))
-                                                                                 (and id-main-mode (equal id-main-mode main-mode))))))
-                                                             mjr-arrange-windows-kin))))
+              (match-config-list (grp-num) (cl-find-if (lambda (x) (when (member (plist-get x :group) (if (listp grp-num) grp-num (list grp-num)))
+                                                                     (or (let ((main-name-re (plist-get x :main-name-re)))
+                                                                           (and main-name-re (string-match-p main-name-re main-name)))
+                                                                         (let ((main-mode-eq (plist-get x :main-mode-eq)))
+                                                                           (and main-mode-eq (eq main-mode-eq main-mode))))))
+                                                       mjr-arrange-windows-kin)))
       (let* ((right-modes  (cl-case layout
                              (1 (match-config-list '(1 4)))                           ;; Layout 1 gets group-1 and group-4 on the right
                              (4 (match-config-list 4))))                              ;; Layout 4 gets only group-1 on the right
