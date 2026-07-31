@@ -41,7 +41,7 @@
 ;; buffer getting the CWD inserted if it's missing.  dired & eshell are not the only buffers that might be related to the buffer I'm working with.  For
 ;; example a C++ source file might have an associated compile buffer, or a Julia code buffer might have an associated interactive buffer.
 ;; `mjr-arrange-windows' (C-c w) is designed to collect together all of these related buffers and display them in a sensible way in the frame.  It can have
-;; very sophsticated rules set up to identify related buffers and display them.  `mjr-window-configuration-to-register-and-zoom' (C-c z) allows me to zoom
+;; very sophsticated rules set up to identify related buffers and display them.  `mjr-window-zoom' (C-c z) allows me to zoom
 ;; into, and out of, a buffer.  `mjr-follow-mode' (C-c f) takes over a frame createing follow-style windows.  The functions `mjr-view-file-or-url-at-point'
 ;; (C-c v) & `mjr-open-cwd' (C-c e) provide some welcome interaction with the host operating system.  Some of these functions provide significantly more
 ;; complex behavior that one might expect -- `mjr-eshell' (C-c s) & `mjr-arrange-windows' (C-c w) in particular.
@@ -52,20 +52,18 @@
 (require 'mjr-buffer-directory)
 (require 'mjr-show-buffer)
 
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ;;;###autoload
-;; (defgroup mjr-flow nil
-;;   "mjr-flow"
-;;   :group 'convenience)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;###autoload
+(defgroup mjr-flow nil
+  "mjr-flow"
+  :group 'convenience)
 
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; ;;;###autoload
-;; (defcustom mjr-flow-use-ido t
-;;   "Use `ido-completing-read' if non-NIL.  Otherwise use `read-answer'.
-;; `read-answer' provides a faster, but more terse user interface -- i.e. only one keystroke to select an evaluation method instead of two."
-;;   :type 'boolean
-;;   :group 'mjr-flow)
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;###autoload
+(defcustom mjr-window-zoom-ring-max-size 10
+  "Maximum size of window state configuration ring."
+  :type 'integer
+  :group 'mjr-flow)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
@@ -285,22 +283,24 @@ PFX argument:
                                                                                   (cons 'directory  target-dir))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;###autoload
-(defun mjr-window-configuration-to-register-and-zoom (pfx)
-  "Store window config to a register, and zoom window.  If window is already zoomed, restore previously saved window config.
+(defvar mjr-window-zoom-ring nil)
 
-With a prefix argument, query for the register to use. Without a prefix argument, the register used will be /w/."
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;###autoload
+(defun mjr-window-zoom (pfx)
+  "Store window config to a register, and zoom window.  With a prefix argument or if the window is already zoomed, restore previous window config.
+
+Window configs are stored on a ring `mjr-window-zoom-ring' of maximum length `mjr-window-zoom-ring-max-size'.  Each time this function restores
+a window configuration, the ring is rotated."
   (interactive "P")
-  (if (one-window-p)
-      (if pfx
-          (call-interactively #'jump-to-register)
-          (let ((w-content (get-register ?w)))
-            (if (and (listp w-content) (window-configuration-p (car w-content)))
-                (set-window-configuration (car w-content))
-                (error "ERROR: mjr-window-configuration-to-register-and-zoom): The register w doesn't contain a window configuration"))))
-      (progn (if pfx
-                 (call-interactively #'window-configuration-to-register)
-                 (window-configuration-to-register ?w))
+  (if (or pfx (one-window-p))
+      (let ((w (car mjr-window-zoom-ring)))
+        (unless w
+          (error "ERROR: mjr-window-zoom): The window configuration ring is empty"))
+        (setq mjr-window-zoom-ring (append (cdr mjr-window-zoom-ring) (list w)))
+        (set-window-configuration w))
+      (progn (push (current-window-configuration) mjr-window-zoom-ring)
+             (ntake mjr-window-zoom-ring-max-size mjr-window-zoom-ring)
              (delete-other-windows))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -375,6 +375,14 @@ With a prefix argument, query for the register to use. Without a prefix argument
          (proj-dir    (or git-dir cmake-dir main-dir))                                ;; A prefix argument != 1 maps to layout 4 right now
          (right-width 100)                                                            ;; Width of right side windows
          (esh-targ-hi 25)                                                             ;; eshell target height
+         (context     (list :main-mode main-mode
+                            :main-buf  main-buf
+                            :main-name main-name
+                            :main-file main-file
+                            :main-dir  main-dir
+                            :git-dir   git-dir
+                            :cmake-dir cmake-dir
+                            :proj-dir  proj-dir))
          (group-4-kin '(("^next-tag\\.org"      (vc-dir-mode))                        ;; Group 4 Modes -- always appear on the riht
                         (org-mode               (inferior-ess-r-mode
                                                  inf-ruby-mode
@@ -410,17 +418,21 @@ With a prefix argument, query for the register to use. Without a prefix argument
                         (inferior-octave-mode     25 25  nil)
                         (lisp-interaction-mode    25 25  nil)
                         (slime-repl-mode          25 25  nil)
-                        ("elisp-interactyness"    25 40  (or (and main-dir   (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir main-dir)
-                                                                                 (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir main-dir)))
-                                                             (and git-dir    (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir git-dir)
-                                                                                 (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir git-dir)))
-                                                             (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode)
-                                                             (mjr-find-buffer 't :mode 'lisp-interaction-mode)))
-                        (vc-dir-mode              15 15  (when (and main-dir git-dir (string-equal main-dir git-dir))
-                                                           (let ((display-buffer-alist '((".*" display-buffer-same-window))))
-                                                             (vc-dir git-dir)
-                                                             (current-buffer))))
-                        (compilation-mode         10 10  (get-buffer "*compilation*")))))
+                        ("elisp-interactyness"    25 40  (lambda (c) (let ((main-dir (plist-get c :main-dir))
+                                                                           (git-dir  (plist-get c :git-dir)))
+                                                                       (or (and main-dir   (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir main-dir)
+                                                                                               (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir main-dir)))
+                                                                           (and git-dir    (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir git-dir)
+                                                                                               (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir git-dir)))
+                                                                           (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode)
+                                                                           (mjr-find-buffer 't :mode 'lisp-interaction-mode)))))
+                        (vc-dir-mode              15 15  (lambda (c) (let ((main-dir (plist-get c :main-dir))
+                                                                           (git-dir  (plist-get c :git-dir)))
+                                                                       (when (and main-dir git-dir (string-equal main-dir git-dir))
+                                                                         (let ((display-buffer-alist '((".*" display-buffer-same-window))))
+                                                                           (vc-dir git-dir)
+                                                                           (current-buffer))))))
+                        (compilation-mode         10 10  (lambda (c) (get-buffer "*compilation*"))))))
     (when (< max-height     (* 2.0 esh-targ-hi))  (error "mjr-arrange-windows: Window too short for standard layout"))
     (when (< (window-width) (* 2.5 right-width))  (error "mjr-arrange-windows: Window too narrow for standard layout"))
     (cl-flet ((make-buffer-data-list (ml) (cl-loop for m in ml
@@ -428,7 +440,7 @@ With a prefix argument, query for the register to use. Without a prefix argument
                                                    for n = (nth 3 o)
                                                    for b = (if n
                                                                (save-excursion
-                                                                 (eval n nil))
+                                                                 (funcall n context)); (eval n nil))
                                                                (mjr-find-buffer 't :mode m :dir main-dir))
                                                    when b
                                                    collect (append (list b) o)))
