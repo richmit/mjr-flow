@@ -285,24 +285,27 @@ PFX argument:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar mjr-window-ring nil)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun mjr-window-ring-push ()
+  "PUsh current window configuration onto ring."
   (push (current-window-configuration) mjr-window-ring)
   (ntake mjr-window-ring-max-size mjr-window-ring))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun mjr-window-ring-pop ()
+  "Return current value and rotate ring."
   (when-let* ((w (pop mjr-window-ring)))
     (when w
       (setq mjr-window-ring (append (cdr mjr-window-ring) (list w))))
     w))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
 (defun mjr-window-zoom (pfx)
   "In a one window frame, or with a prefix argument, restore window configuration from ring.  In multi-window frame, push window config to ring and zoom.
 
-Window configs are stored on a ring `mjr-window-ring' of maximum length `mjr-window-ring-max-size'.  Each time this function restores a window configuration,
-the ring is rotated."
+Window configurations are stored on a ring `mjr-window-ring' of maximum length `mjr-window-ring-max-size'.  Each time this function restores a window
+configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max-size calls to cycle through the ring."
   (interactive "P")
   (if (or pfx (one-window-p))
       (let ((w (mjr-window-ring-pop)))
@@ -315,7 +318,7 @@ the ring is rotated."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
 (defun mjr-arrange-windows (&optional requested-layout)
-  "Arrange related buffers in windows around a main buffer window.
+  "Save window configuration to ring, and arrange related buffers in windows around a main buffer window.
 
    Examples of related buffers:
      - A buffer  visiting a file, and a dired visiting the directory.
@@ -370,6 +373,7 @@ the ring is rotated."
         - All the /other/ windows can be rendered with maximum height. The primary buffer window is at least half the height of the frame.
         - All the /other/ buffers can be rendered with equal size in 1/2 of the frame height."
   (interactive (list (prefix-numeric-value current-prefix-arg)))
+  (mjr-window-ring-push)                                                              ;; Push current config to ring so we can get back
   (delete-other-windows)                                                              ;; Wack all the other windows
   (let* ((layout      (if (numberp requested-layout) requested-layout 1))             ;; Default layout is 1
          (left-window (selected-window))                                              ;; ID for the only remaining window
