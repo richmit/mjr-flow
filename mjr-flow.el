@@ -60,7 +60,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
-(defcustom mjr-window-zoom-ring-max-size 10
+(defcustom mjr-window-ring-max-size 10
   "Maximum size of window state configuration ring."
   :type 'integer
   :group 'mjr-flow)
@@ -283,24 +283,33 @@ PFX argument:
                                                                                   (cons 'directory  target-dir))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defvar mjr-window-zoom-ring nil)
+(defvar mjr-window-ring nil)
+
+(defun mjr-window-ring-push ()
+  (push (current-window-configuration) mjr-window-ring)
+  (ntake mjr-window-ring-max-size mjr-window-ring))
+
+(defun mjr-window-ring-pop ()
+  (when-let* ((w (pop mjr-window-ring)))
+    (when w
+      (setq mjr-window-ring (append (cdr mjr-window-ring) (list w))))
+    w))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
 (defun mjr-window-zoom (pfx)
-  "Store window config to a register, and zoom window.  With a prefix argument or if the window is already zoomed, restore previous window config.
+  "In a one window frame, or with a prefix argument, restore window configuration from ring.  In multi-window frame, push window config to ring and zoom.
 
-Window configs are stored on a ring `mjr-window-zoom-ring' of maximum length `mjr-window-zoom-ring-max-size'.  Each time this function restores
-a window configuration, the ring is rotated."
+Window configs are stored on a ring `mjr-window-ring' of maximum length `mjr-window-ring-max-size'.  Each time this function restores a window configuration,
+the ring is rotated."
   (interactive "P")
   (if (or pfx (one-window-p))
-      (let ((w (car mjr-window-zoom-ring)))
+      (let ((w (mjr-window-ring-pop)))
         (unless w
           (error "ERROR: mjr-window-zoom): The window configuration ring is empty"))
-        (setq mjr-window-zoom-ring (append (cdr mjr-window-zoom-ring) (list w)))
         (set-window-configuration w))
-      (progn (push (current-window-configuration) mjr-window-zoom-ring)
-             (ntake mjr-window-zoom-ring-max-size mjr-window-zoom-ring)
+      (progn (mjr-window-ring-push)
              (delete-other-windows))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
