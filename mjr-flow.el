@@ -67,6 +67,72 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
+(defcustom mjr-arrange-windows-kin '((:file-re   "^next-tag\\.org"      :group 4 :members (vc-dir-mode))
+                                     (:mode-name org-mode               :group 4 :members (inferior-ess-r-mode
+                                                                                           inf-ruby-mode
+                                                                                           slime-repl-mode
+                                                                                           lisp-interaction-mode
+                                                                                           inferior-emacs-lisp-mode
+                                                                                           inferior-octave-mode
+                                                                                           inferior-maxima-mode))
+                                     (:mode-name makefile-mode          :group 4 :members (vc-dir-mode))
+                                     (:mode-name makefile-gmake-mode    :group 4 :members (vc-dir-mode))
+                                     (:file-re   "^CMakeLists\\.txt"    :group 4 :members (vc-dir-mode))
+                                     (:file-re   "^CMakePresets\\.json" :group 4 :members (vc-dir-mode))
+                                     (:mode-name ess-r-mode             :group 4 :members (ess-rdired-mode))
+                                     (:mode-name ruby-mode              :group 1 :members (inf-ruby-mode))   
+                                     (:mode-name c++-mode               :group 1 :members (compilation-mode))
+                                     (:mode-name fortran-mode           :group 1 :members (compilation-mode))
+                                     (:mode-name f90-mode               :group 1 :members (compilation-mode))
+                                     (:mode-name c-mode                 :group 1 :members (compilation-mode))
+                                     (:file-re   "^CMakeLists\\.txt"    :group 1 :members (compilation-mode))
+                                     (:mode-name makefile-mode          :group 1 :members (compilation-mode))
+                                     (:mode-name makefile-gmake-mode    :group 1 :members (compilation-mode))
+                                     (:mode-name cmake-mode             :group 1 :members (compilation-mode))
+                                     (:mode-name lisp-mode              :group 1 :members (slime-repl-mode))
+                                     (:mode-name octave-mode            :group 1 :members (inferior-octave-mode))
+                                     (:mode-name emacs-lisp-mode        :group 1 :members (:elisp-interactyness))
+                                     (:mode-name ess-r-mode             :group 1 :members (inferior-ess-r-mode))
+                                     (:mode-name inferior-ess-r-mode    :group 1 :members (ess-rdired-mode)))
+  "Used by mjr-arrange-windows to define related (kin) buffers."
+  :type 'list
+  :group 'mjr-flow)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;###autoload
+(defcustom mjr-arrange-windows-kin-options '((:id ess-rdired-mode          :l-max-hi 15 :r-max-hi 15)
+                                             (:id inf-ruby-mode            :l-max-hi 25 :r-max-hi 25)
+                                             (:id inferior-emacs-lisp-mode :l-max-hi 25 :r-max-hi 25)
+                                             (:id inferior-ess-r-mode      :l-max-hi 25 :r-max-hi 25)
+                                             (:id inferior-maxima-mode     :l-max-hi 25 :r-max-hi 25)
+                                             (:id inferior-octave-mode     :l-max-hi 25 :r-max-hi 25)
+                                             (:id lisp-interaction-mode    :l-max-hi 25 :r-max-hi 25)
+                                             (:id slime-repl-mode          :l-max-hi 25 :r-max-hi 25)
+                                             (:id :elisp-interactyness     :l-max-hi 25 :r-max-hi 40 
+                                                  :get-buf (lambda (c) (let ((main-dir (plist-get c :main-dir))
+                                                                             (git-dir  (plist-get c :git-dir)))
+                                                                         (or (and main-dir   (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir main-dir)
+                                                                                                 (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir main-dir)))
+                                                                             (and git-dir    (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir git-dir)
+                                                                                                 (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir git-dir)))
+                                                                             (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode)
+                                                                             (mjr-find-buffer 't :mode 'lisp-interaction-mode)))))
+                                             (:id vc-dir-mode              :l-max-hi 15 :r-max-hi 15
+                                                  :get-buf (lambda (c) (let ((main-dir (plist-get c :main-dir))
+                                                                             (git-dir  (plist-get c :git-dir)))
+                                                                         (when (and main-dir git-dir (string-equal main-dir git-dir))
+                                                                           (let ((display-buffer-alist '((".*" display-buffer-same-window))))
+                                                                             (vc-dir git-dir)
+                                                                             (current-buffer))))))
+                                             (:id compilation-mode         :l-max-hi 10 :r-max-hi 10 
+                                                  :get-buf (lambda (c)
+                                                             (get-buffer "*compilation*"))))
+  "Options used by mjr-arrange-windows for related (kin) buffers."
+  :type 'list
+  :group 'mjr-flow)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;###autoload
 (defvar-local mjr-eshell-prefered-directory nil
   "Buffer local variable storing the preferred directory for mjr-eshell to start up an eshell session related to this buffer.
 
@@ -287,13 +353,16 @@ PFX argument:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun mjr-window-ring-push ()
-  "PUsh current window configuration onto ring."
-  (push (current-window-configuration) mjr-window-ring)
-  (ntake mjr-window-ring-max-size mjr-window-ring))
+  "If the current frame has more than one window, then pUsh current window configuration onto the window configuration ring.
+Window configurations are stored on a ring `mjr-window-ring' of maximum length `mjr-window-ring-max-size'."
+  (unless (one-window-p)
+    (push (current-window-configuration) mjr-window-ring)
+    (ntake mjr-window-ring-max-size mjr-window-ring)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun mjr-window-ring-pop ()
-  "Return current value and rotate ring."
+  "Return current value and rotate ring.
+Window configurations are stored on a ring `mjr-window-ring' of maximum length `mjr-window-ring-max-size'."
   (when-let* ((w (pop mjr-window-ring)))
     (when w
       (setq mjr-window-ring (append (cdr mjr-window-ring) (list w))))
@@ -395,76 +464,27 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
                             :main-dir  main-dir
                             :git-dir   git-dir
                             :cmake-dir cmake-dir
-                            :proj-dir  proj-dir))
-         (group-4-kin '(("^next-tag\\.org"      (vc-dir-mode))                        ;; Group 4 Modes -- always appear on the riht
-                        (org-mode               (inferior-ess-r-mode
-                                                 inf-ruby-mode
-                                                 slime-repl-mode
-                                                 lisp-interaction-mode
-                                                 inferior-emacs-lisp-mode
-                                                 inferior-octave-mode
-                                                 inferior-maxima-mode))
-                        (makefile-mode          (vc-dir-mode))
-                        (makefile-gmake-mode    (vc-dir-mode))
-                        ("^CMakeLists\\.txt"    (vc-dir-mode))
-                        ("^CMakePresets\\.json" (vc-dir-mode))
-                        (ess-r-mode             (ess-rdired-mode))))
-         (group-1-kin '((ruby-mode              (inf-ruby-mode))                      ;; Group 1 Modes -- left "other" windows with prefix
-                        (c++-mode               (compilation-mode))
-                        (fortran-mode           (compilation-mode))
-                        (f90-mode               (compilation-mode))
-                        (c-mode                 (compilation-mode))
-                        ("^CMakeLists\\.txt"    (compilation-mode))
-                        (makefile-mode          (compilation-mode))
-                        (makefile-gmake-mode    (compilation-mode))
-                        (cmake-mode             (compilation-mode))
-                        (lisp-mode              (slime-repl-mode))
-                        (octave-mode            (inferior-octave-mode))
-                        (emacs-lisp-mode        ("elisp-interactyness"))
-                        (ess-r-mode             (inferior-ess-r-mode))
-                        (inferior-ess-r-mode    (ess-rdired-mode))))
-         (other-opt   '((ess-rdired-mode          15 15  nil)                         ;; Options for other windows (l-max-hi, r-max-hi & get-buf)
-                        (inf-ruby-mode            25 25  nil)
-                        (inferior-emacs-lisp-mode 25 25  nil)
-                        (inferior-ess-r-mode      25 25  nil)
-                        (inferior-maxima-mode     25 25  nil)
-                        (inferior-octave-mode     25 25  nil)
-                        (lisp-interaction-mode    25 25  nil)
-                        (slime-repl-mode          25 25  nil)
-                        ("elisp-interactyness"    25 40  (lambda (c) (let ((main-dir (plist-get c :main-dir))
-                                                                           (git-dir  (plist-get c :git-dir)))
-                                                                       (or (and main-dir   (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir main-dir)
-                                                                                               (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir main-dir)))
-                                                                           (and git-dir    (or (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode :dir git-dir)
-                                                                                               (mjr-find-buffer 't :mode 'lisp-interaction-mode    :dir git-dir)))
-                                                                           (mjr-find-buffer 't :mode 'inferior-emacs-lisp-mode)
-                                                                           (mjr-find-buffer 't :mode 'lisp-interaction-mode)))))
-                        (vc-dir-mode              15 15  (lambda (c) (let ((main-dir (plist-get c :main-dir))
-                                                                           (git-dir  (plist-get c :git-dir)))
-                                                                       (when (and main-dir git-dir (string-equal main-dir git-dir))
-                                                                         (let ((display-buffer-alist '((".*" display-buffer-same-window))))
-                                                                           (vc-dir git-dir)
-                                                                           (current-buffer))))))
-                        (compilation-mode         10 10  (lambda (c) (get-buffer "*compilation*"))))))
+                            :proj-dir  proj-dir)))
     (when (< max-height     (* 2.0 esh-targ-hi))  (error "mjr-arrange-windows: Window too short for standard layout"))
     (when (< (window-width) (* 2.5 right-width))  (error "mjr-arrange-windows: Window too narrow for standard layout"))
     (cl-flet ((make-buffer-data-list (ml) (cl-loop for m in ml
-                                                   for o = (assoc m other-opt)
-                                                   for n = (nth 3 o)
+                                                   for o = (cl-find-if (lambda (x) (equal m (plist-get x :id))) mjr-arrange-windows-kin-options)
+                                                   for n = (plist-get o :get-buf)
                                                    for b = (if n
                                                                (save-excursion
-                                                                 (funcall n context)); (eval n nil))
+                                                                 (funcall n context))
                                                                (mjr-find-buffer 't :mode m :dir main-dir))
                                                    when b
-                                                   collect (append (list b) o)))
-              (match-config-list (da-list) (cadr (cl-find-if (lambda (x) (if (stringp (car x))
-                                                                             (string-match-p (car x) main-name)
-                                                                             (equal          (car x) main-mode)))
-                                                             da-list))))
+                                                   collect (append (list :buf b) o)))
+              (match-config-list (grp-num) (cadr (cl-find-if (lambda (x) (when (member (plist-get mjr-arrange-windows-kin :group) (if (listp grp-num) grp-num (list grp-num)))
+                                                                           (or (let ((id-main-name (plist-get mjr-arrange-windows-kin :main-name)))
+                                                                                 (and id-main-name (string-match-p id-main-name main-name)))
+                                                                               (let ((id-main-mode (plist-get mjr-arrange-windows-kin :main-mode)))
+                                                                                 (and id-main-mode (equal id-main-mode main-mode))))))
+                                                             mjr-arrange-windows-kin))))
       (let* ((right-modes  (cl-case layout
-                             (1 (append (match-config-list group-1-kin)               ;; Layout 1 gets group-1 and group-4 on the right
-                                        (match-config-list group-4-kin)))
-                             (4 (match-config-list group-4-kin))))                    ;; Layout 4 gets only group-1 on the right
+                             (1 (match-config-list '(1 4)))                           ;; Layout 1 gets group-1 and group-4 on the right
+                             (4 (match-config-list 4))))                              ;; Layout 4 gets only group-1 on the right
              (right-bufs   (make-buffer-data-list right-modes))                       ;; Find existing buffers matching modes & directory
              (right-count  (length right-bufs))                                       ;; Number of "other windows" on the right
              (right-window (split-window left-window (- right-width) 'right)))        ;; Right window is 100 columns -- so left is normally quite wide
@@ -476,7 +496,7 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
         (revert-buffer)                                                               ;; refresh dired contents
         (let* ((dired-p-hi (+ 3 (count-lines (point-min) (point-max))))               ;; Size of window perfectly fitted dired contents
                (right-m-hi (cl-loop for bb in right-bufs                              ;; Maximum size for ALL "other" windows
-                                    sum (nth 3 bb)))
+                                    sum (plist-get bb :r-max-hi)))
                (eshell-hi   (if (< esh-targ-hi (- max-height right-m-hi dired-p-hi))  ;; Height of eshell if we have enough space
                                 (- max-height right-m-hi dired-p-hi)
                                 (1- (truncate (- max-height right-m-hi) 2))))
@@ -494,24 +514,28 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
                       (mjr-eshell nil))
                     (mjr-eshell nil))))
           (dolist (bb right-bufs)                                                     ;; Add all the right sub-windows
-            (let ((tmp (split-window right-window (- (or right-hi (nth 3 bb))) 'below)))
+            (let ((tmp (split-window right-window
+                                     (- (or right-hi (plist-get bb :r-max-hi))) 
+                                     'below)))
               (select-window tmp 't)
-              (switch-to-buffer (car bb))))))
+              (switch-to-buffer (plist-get bb :buf))))))
       (when (= 4 layout)                                                              ;; Layout 4
-        (let* ((left-modes (match-config-list group-1-kin))                           ;; group-1 on the left
+        (let* ((left-modes (match-config-list 1))                                     ;; group-1 on the left
                (left-bufs  (make-buffer-data-list left-modes))                        ;; Find existing buffers matching modes & directory
                (left-count (length left-bufs)))                                       ;; Number of other buffers on the left
           (when (> left-count 0)
             (let* ((left-m-hi  (cl-loop for bb in left-bufs                           ;; Maximum size for ALL "other" windows
-                                        sum (nth 2 bb)))
+                                        sum (plist-get bb :l-max-hi)))
                    (left-hi    (when (> left-m-hi (truncate max-height 2))            ;; Size for left if we can't fit max height
                                  (truncate (truncate max-height 2) left-count))))
               (when (and left-hi (< left-hi 15))
                 (error "mjr-arrange-windows: Insufficient room for left side windows."))
               (dolist (bb left-bufs)                                                  ;; Create all the windows
-                (let ((tmp (split-window left-window (- (or left-hi (nth 2 bb))) 'below)))
+                (let ((tmp (split-window left-window
+                                         (- (or left-hi (plist-get bb :l-max-hi))) 
+                                         'below)))
                   (select-window tmp 't)
-                  (switch-to-buffer (car bb))))))))
+                  (switch-to-buffer (plist-get bb :buf))))))))
       (select-window left-window 't)                                                  ;; Get us back in the upper left window
       (switch-to-buffer main-buf)))                                                   ;; Select original buffer just in case
   (message "mjr-arrange-windows Complete"))
