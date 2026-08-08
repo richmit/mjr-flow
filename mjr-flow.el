@@ -19,7 +19,7 @@
 ;; TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Author:      Mitch Richling
-;; Version:     0.7
+;; Version:     0.8
 ;; Keywords:    mjr-flow
 ;; URL:         https://github.com/richmit/mjr-flow
 
@@ -346,9 +346,9 @@ PFX argument:
                                                      (esb-cwd-none (null esb-cwd)))
                                                 (if (file-directory-p esh-cwd)
                                                     (progn (setq mjr-eshell-prefered-directory esh-cwd)
-                                                           (cond ((or pfx-minus esb-cwd-none) (progn                                        ;;;;;; no eshell exists for input CWD
-                                                                                                (eshell/cd esh-cwd)
-                                                                                                (eshell-send-input)))
+                                                           (cond ((or pfx-minus esb-cwd-none) (progn (eshell nxt-esh-num)                    ;;;;;; no eshell exists for input CWD
+                                                                                                     (eshell/cd esh-cwd)
+                                                                                                     (eshell-send-input)))
                                                                  (esb-cwd-many                (ibuffer nil
                                                                                                        "ESHELL BUFFERS"
                                                                                                        (list (cons 'mode      'eshell-mode) ;;;;;; many eshells exist for input CWD
