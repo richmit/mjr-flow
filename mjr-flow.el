@@ -19,7 +19,7 @@
 ;; TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Author:      Mitch Richling
-;; Version:     0.6
+;; Version:     0.7
 ;; Keywords:    mjr-flow
 ;; URL:         https://github.com/richmit/mjr-flow
 
@@ -107,7 +107,7 @@
                                      (:main-mode-eq ess-r-mode             :group 1 :members (inferior-ess-r-mode))
                                      (:main-mode-eq inferior-ess-r-mode    :group 1 :members (ess-rdired-mode)))
   "Used by mjr-arrange-windows to define related (kin) buffers."
-  :type 'list
+  :type '(list (plist))
   :group 'mjr-flow)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -140,7 +140,7 @@
                                                   :get-buf (lambda (c)
                                                              (get-buffer "*compilation*"))))
   "Options used by mjr-arrange-windows for related (kin) buffers."
-  :type 'list
+  :type '(list (plist))
   :group 'mjr-flow)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -157,7 +157,7 @@ eshell sessions for this buffer.  In all other cases the return from mjr-buffer-
   "Search for one (when ONLY-ONE is non-NIL) or more buffer.
 Search the buffer list by a series of ANDed together criteria -- i.e. matching buffers must match every provided criteria.
 Each criteria consists of a criteria type symbol and a filter value -- provided as two arguments to this function.  The filter
-value may be a list in which case it's elements are logically ORed together -- i.e. a buffer matches the criteria if it matches
+value may be a list in which case the elements are logically ORed together -- i.e. a buffer matches the criteria if it matches
 any of the filter values on the list.  A filter value of nil matches anything.  Criteria types:
   - :mode ............... Find buffers by function `major-mode'
   - :dir & :dir-re ...... Find buffers by function `mjr-buffer-directory'
@@ -207,7 +207,6 @@ Three modes of interactive operation:
     * Some buffers (dired & eshell) have a directory name appended if necessary
       * ex: eshell buffers transform to esh:DIRECTORY where DIRECTORY is the last bit of the CWD"
   (interactive (list (let* ((cur-frame  (selected-frame))
-                            (cur-window (selected-window))
                             (cur-buffer (window-buffer))
                             (da-windows nil))
                        (dolist (w (window-list cur-frame))
@@ -259,7 +258,7 @@ alt-op alters the behavior
   - 4 ... (C-u) Dired visiting project root for mjr-buffer-directory. Insert mjr-buffer-directory into this dired if missing.
   - 16 .. (C-u C-u) Dired visiting project root for mjr-buffer-directory."
   (interactive (list (current-buffer) (prefix-numeric-value current-prefix-arg)))
-  (let* ((buf-dir       (mjr-buffer-directory))
+  (let* ((buf-dir       (mjr-buffer-directory buffer))
          (proj-dir      (when (> alt-op 1)
                           (or (locate-dominating-file buf-dir ".git")
                               (locate-dominating-file buf-dir "CMakeLists.txt"))))
@@ -347,7 +346,7 @@ PFX argument:
                                                      (esb-cwd-none (null esb-cwd)))
                                                 (if (file-directory-p esh-cwd)
                                                     (progn (setq mjr-eshell-prefered-directory esh-cwd)
-                                                           (cond ((or pfx-minus esb-cwd-none) (let ((nesh (eshell nxt-esh-num)))            ;;;;;; no eshell exists for input CWD
+                                                           (cond ((or pfx-minus esb-cwd-none) (progn                                        ;;;;;; no eshell exists for input CWD
                                                                                                 (eshell/cd esh-cwd)
                                                                                                 (eshell-send-input)))
                                                                  (esb-cwd-many                (ibuffer nil
@@ -554,16 +553,16 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;###autoload
-(defun mjr-scratch (&optional mode-to-use content)
+(defun mjr-scratch (&optional mode-to-use new-buf-content)
   "Create a new scratch buffer with current region's contents and switch to it.  Understands rectangular selections.
 The mode for the new buffer is interactively queried.  With prefix argument you can specify an arbitrary mode, without you get a safe list."
   (interactive (list (if (and (null current-prefix-arg) (and (boundp 'ido-everywhere) ido-everywhere))
                          (ido-completing-read "New buffer mode: " (delete-dups (list "lisp-interaction-mode" "text-mode" "org-mode" "mail-mode" (symbol-name major-mode))))
-                         (read-string         "New buffer mode: " "lisp-interaction-mode"))))
-  (let* ((new-buf-content  (if (region-active-p)
-                               (buffer-substring-no-properties (region-beginning) (region-end))
-                               ""))
-         (new-buf-mode-str (if (not (stringp mode-to-use))
+                         (read-string         "New buffer mode: " "lisp-interaction-mode"))
+                     (if (region-active-p)
+                         (buffer-substring-no-properties (region-beginning) (region-end))
+                         "")))
+  (let* ((new-buf-mode-str (if (not (stringp mode-to-use))
                                "lisp-interaction-mode"
                                mode-to-use))
          (new-buf-mode-sym (let ((mode-sym (intern new-buf-mode-str)))
