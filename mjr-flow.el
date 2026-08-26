@@ -71,6 +71,13 @@
 ;;   - C-c e `mjr-open-cwd'
 ;;   - C-c s `mjr-select-window'
 ;;
+;; ** Installing
+;;
+;; The easiest way to install mjr-eval is to pull it directly from github:
+;;
+;;      (package-vc-install (list 'mjr-eval
+;;                           :url "https://github.com/richmit/mjr-eval"
+;;                           :rev 'newest))
 
 ;;; Code:
 
