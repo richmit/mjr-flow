@@ -673,4 +673,6 @@ The value of cols-or-col-width-or-fill-width-or-percentile is used to determine 
 
 (provide 'mjr-flow)
 
+;; (mjr-install-mjr-packages :reinstall :git 'mjr-flow)
+
 ;;; mjr-flow.el ends here
