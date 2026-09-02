@@ -19,7 +19,7 @@
 ;; TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Author:      Mitch Richling
-;; Version:     0.9
+;; Version:     0.10
 ;; Keywords:    mjr-flow
 ;; URL:         https://github.com/richmit/mjr-flow
 
@@ -623,14 +623,8 @@ The mode for the new buffer is interactively queried.  With prefix argument you 
     ;; Act on filename
     (cl-case system-type
       (windows-nt (w32-shell-execute (if current-prefix-arg "openas" "open") fap))
-      (darwin     (start-process-shell-command "open" "open" (concat "open " fap)))
-      (gnu/linux  (let ((ttr (or (cdr (assoc (upcase (file-name-extension fap)) (list (cons "PDF"  "mjrpdfview")
-                                                                                      (cons "JPEG" "mjrimgview")
-                                                                                      (cons "JPG"  "mjrimgview")
-                                                                                      (cons "GIF"  "mjrimgview")
-                                                                                      (cons "PNG"  "mjrimgview"))))
-                                 "xdg-open")))
-                    (start-process-shell-command ttr ttr (concat ttr " " fap))))
+      (darwin     (call-process "open" nil nil nil fap))
+      (gnu/linux  (call-process "xdg-open" nil nil nil fap))
       (otherwise  (message "mjr-view-file-or-url-at-point: ERROR: Found a file, but platform is unknown")))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
