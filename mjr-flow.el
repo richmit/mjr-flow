@@ -19,7 +19,7 @@
 ;; TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Author:      Mitch Richling
-;; Version:     0.10
+;; Version:     0.11
 ;; Keywords:    mjr-flow
 ;; URL:         https://github.com/richmit/mjr-flow
 
@@ -542,8 +542,8 @@ configuration, the ring is rotated allowing repeated C-u M-x mjr-window-ring-max
             (if (buffer-local-value 'mjr-eshell-prefered-directory main-buf)          ;; If we have previously started an eshell, use the dir
                 (mjr-eshell nil)
                 (if (or proj-dir git-dir)
-                    (let ((mjr-eshell-prefered-directory (or proj-dir git-dir)))      ;; Start eshell in project root if it exists
-                      (mjr-eshell nil))
+                    (progn (setq mjr-eshell-prefered-directory (or proj-dir git-dir)) ;; Start eshell in project root if it exists
+                           (mjr-eshell nil))
                     (mjr-eshell nil))))
           (dolist (bb right-bufs)                                                     ;; Add all the right sub-windows
             (let ((tmp (split-window right-window
